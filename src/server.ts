@@ -11,3 +11,20 @@ export function initializeServer(): FastifyInstance {
 
   return server;
 }
+
+/*
+  binds the server instance to port 3000 and starts listening for incoming requests
+ */
+export async function startServer(server: FastifyInstance): Promise<void> {
+    // resolve(undefined) or resolve(err)
+  try {
+    const PORT: number = 3000;
+    const HOST: string = '127.0.0.1';
+
+    await server.listen({ port: PORT, host: HOST });
+    console.log(`Proxy server listening on http://${HOST}:${PORT}`);
+  } catch (err: unknown) {
+    console.error('Failed to start server:', err);
+    throw err;
+  }
+}
