@@ -6,7 +6,8 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "test:proxy": "tsx tests/test-proxy.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test:tokenizer": "tsx tests/tokenizer.test.ts",
+    "test": "npm run test:tokenizer"
   },
   "repository": {
     "type": "git",

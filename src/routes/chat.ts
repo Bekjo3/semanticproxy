@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { IChatCompletionRequest, IChatCompletionResponse } from '../types/openai';
 import { forwardToOpenAI } from '../services/upstream';
 import { config } from '../config';
+import { tokenTrackerPreHandler } from '../middleware/tokenTracker';
 
 /*
  JSON Schema validator for incoming chat completion requests.
@@ -68,10 +69,13 @@ export async function registerChatRoute(server: FastifyInstance): Promise<void> 
       schema: {
         body: chatCompletionSchema,
       },
+      preHandler: tokenTrackerPreHandler,
     },
     async (request: FastifyRequest<{ Body: IChatCompletionRequest }>, reply: FastifyReply) => {
       // If a request reaches here, it passed validation
       try {
+        console.log(`Payload token count: ${request.payloadTokenCount}`);
+
         const response: IChatCompletionResponse = await forwardToOpenAI(
           request.body,
           config.openaiApiKey
