@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from 'fastify';
+import { registerChatRoute } from './routes/chat';
 
 /**
  * Initializes and returns a bare-bones Fastify server instance.
@@ -10,6 +11,13 @@ export function initializeServer(): FastifyInstance {
   });
 
   return server;
+}
+
+// register all routes
+export async function registerRoutes(server: FastifyInstance): Promise<void> {
+  await registerChatRoute(server);
+    // will add more...
+  console.log('All routes registered successfully');
 }
 
 /*
