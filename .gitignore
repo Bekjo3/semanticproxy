@@ -1,3 +1,4 @@
 .env
+test-proxy.ts
 
 node_modules/

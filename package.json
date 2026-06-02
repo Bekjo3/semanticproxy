@@ -4,6 +4,8 @@
   "description": "An independent proxy designed to decouple context management, semantic caching, and memory tracking from the LLM applications or agents themselves.",
   "main": "index.js",
   "scripts": {
+    "start": "tsx src/index.ts",
+    "test:proxy": "tsx tests/test-proxy.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -21,6 +23,7 @@
   "dependencies": {
     "dotenv": "^17.4.2",
     "fastify": "^5.8.5",
+    "js-tiktoken": "^1.0.21",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3"
   },
