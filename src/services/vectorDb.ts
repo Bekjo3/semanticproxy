@@ -1,6 +1,13 @@
 import { Index, Pinecone } from '@pinecone-database/pinecone';
 import { config } from '../config';
-import { IVectorMetadata } from '../types/vector';
+import { IVectorMetadata, IVectorRecord } from '../types/vector';
+
+// typed contract for writing vectors — namespace maps to chat_id for isolation.
+export interface IUpsertVectorParams {
+  records: IVectorRecord[];
+  namespace?: string;
+}
+
 
 let vectorDbClient: Pinecone | null = null;
 
@@ -39,4 +46,10 @@ export function getDbIndex(namespace?: string): Index<IVectorMetadata> {
   }
 
   return index;
+}
+
+// batch-commit vectors to Pinecone (overwrites same id if re-upserted).
+export async function upsertVector(params: IUpsertVectorParams): Promise<void> {
+  const index = getDbIndex(params.namespace);
+  await index.upsert({ records: params.records });
 }
