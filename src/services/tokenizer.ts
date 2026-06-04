@@ -38,7 +38,7 @@ export function countStringTokens(text: string): number {
 }
 
 // fixed per-message framing overhead; system messages use +4, others +3.
-// this is just for now. will have to do more research on it.
+// TODO: this is just for now. will have to do more research on it.
 function messageStructuralOverhead(role: IChatCompletionMessage['role']): number {
   return role === 'system' ? 4 : 3;
 }
