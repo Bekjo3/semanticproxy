@@ -11,3 +11,15 @@ export interface IVectorRecord {
   values: number[];
   metadata: IVectorMetadata;
 }
+
+// Input contract for querying the database
+export interface IQueryVectorParams {
+  vector: number[];
+  namespace?: string;
+}
+
+// Output contract for the matched record and its confidence score
+export interface IQueryResult {
+  record: IVectorRecord;
+  score: number;
+}

@@ -1,6 +1,6 @@
 import { Index, Pinecone } from '@pinecone-database/pinecone';
 import { config } from '../config';
-import { IVectorMetadata, IVectorRecord } from '../types/vector';
+import { IVectorMetadata, IVectorRecord, IQueryVectorParams, IQueryResult } from '../types/vector';
 
 // typed contract for writing vectors — namespace maps to chat_id for isolation.
 export interface IUpsertVectorParams {
@@ -52,4 +52,31 @@ export function getDbIndex(namespace?: string): Index<IVectorMetadata> {
 export async function upsertVector(params: IUpsertVectorParams): Promise<void> {
   const index = getDbIndex(params.namespace);
   await index.upsert({ records: params.records });
+}
+
+
+export async function queryNearest(params: IQueryVectorParams): Promise<IQueryResult | null> {
+  const index = getDbIndex(params.namespace);
+
+  const queryResponse = await index.query({
+    vector: params.vector,
+    topK: 1, // just grabbing only the single closest match
+    includeValues: false, // Save bandwidth
+    includeMetadata: true, 
+  });
+
+  const match = queryResponse.matches[0];
+
+  if (!match || match.score === undefined) {
+    return null;
+  }
+ 
+  return {
+    score: match.score,
+    record: {
+      id: match.id,
+      values: [],
+      metadata: match.metadata as IVectorMetadata,
+    },
+  };
 }
