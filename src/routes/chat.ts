@@ -3,6 +3,8 @@ import { IChatCompletionRequest, IChatCompletionResponse } from '../types/openai
 import { forwardToOpenAI } from '../services/upstream';
 import { config } from '../config';
 import { tokenTrackerPreHandler } from '../middleware/tokenTracker';
+import { semanticCacheMiddleware } from '../middleware/semanticCache';
+import { processPostResponseCache } from '../middleware/postResponse';
 
 /*
  JSON Schema validator for incoming chat completion requests.
@@ -62,6 +64,7 @@ const chatCompletionSchema = {
 };
 
 //Registers the POST /v1/chat/completions route handler
+// this outer fun runs only once when the server boots up and lets fastify map the URL '/v1/chat/completions' to the logic
 export async function registerChatRoute(server: FastifyInstance): Promise<void> {
     server.post<{ Body: IChatCompletionRequest }>(
     '/v1/chat/completions',
@@ -69,19 +72,31 @@ export async function registerChatRoute(server: FastifyInstance): Promise<void> 
       schema: {
         body: chatCompletionSchema,
       },
-      preHandler: tokenTrackerPreHandler,
+      preHandler: [tokenTrackerPreHandler, semanticCacheMiddleware], // also runs on every single request
     },
+    // this func runs everytime a user makes a request.
     async (request: FastifyRequest<{ Body: IChatCompletionRequest }>, reply: FastifyReply) => {
       // If a request reaches here, it passed validation
       try {
         console.log(`Payload token count: ${request.payloadTokenCount}`);
 
+        // only executes if the Cache Interceptor missed
         const response: IChatCompletionResponse = await forwardToOpenAI(
           request.body,
           config.openaiApiKey
         );
 
+        // extract data for the background worker
+        const messages = request.body.messages;
+        const lastUserPrompt = messages?.[messages.length - 1]?.content;
+        const chatId = request.body.chat_id || 'global_default';
+
         await reply.send(response);
+
+        // new entry for our vector DB
+        if (lastUserPrompt) {
+          processPostResponseCache(chatId, lastUserPrompt, response).catch(console.error);
+        }
       } catch (err: unknown) {
         console.error('Route handler error:', err);
         throw err;

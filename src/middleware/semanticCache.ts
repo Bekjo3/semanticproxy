@@ -80,7 +80,8 @@ export async function semanticCacheMiddleware(
         }
       };
 
-      return reply.status(200).send(mockOpenAiResponse);
+      recordTurnTimestamp(chatId, matchResult.record.id);
+      return reply.status(200).send(mockOpenAiResponse); // prevents the request form being sent to chect completion endpoint
     }
 
     console.log(`[CACHE MISS] Best match score was ${matchResult?.score ?? 0}. Forwarding to OpenAI.`);
