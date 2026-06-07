@@ -2,6 +2,7 @@ import { config } from '../config';
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { generateTextEmbedding } from '../services/embeddings';
 import { IChatCompletionMessage, IChatCompletionRequest } from '../types/openai';
+import { isWithinTemporalOverrideWindow, recordTurnTimestamp } from '../services/sessionStore';
 import { queryNearest } from '../services/vectorDb';
 
 //extract the latest user question from the chat history array.
@@ -27,6 +28,9 @@ export async function semanticCacheMiddleware(
 ): Promise<void> {
   try {
     const body = request.body as IChatCompletionRequest;
+
+    // provide a strict fallback string if the client omits the chat_id
+    const chatId = body.chat_id || 'global_default';
     
     const userPrompt = extractLatestUserMessage(body.messages);
     if (!userPrompt) {
@@ -37,11 +41,20 @@ export async function semanticCacheMiddleware(
 
     const matchResult = await queryNearest({
       vector: embeddedQuery,
-      namespace: body.chat_id
+      namespace: chatId
     });
 
+    const isHighConfidence = matchResult && matchResult.score >= config.similarityThreshold;
+
     // Evaluate the cache hit (similarityThreshold is 0.95 by default w/c means the questions must be semantically almost identical to trigger a cache hit.)
-    if (matchResult && matchResult.score >= config.similarityThreshold) { 
+    if (isHighConfidence) { 
+      const isStalled = isWithinTemporalOverrideWindow(chatId, matchResult.record.id);
+
+      if (isStalled) {
+         console.log(`[CACHE OVERRIDE] Match found, but user is looping. Forcing fresh OpenAI call.`);
+         return; // pass through to route handler
+      }
+        
       console.log(`[CACHE HIT] Score: ${matchResult.score}. Short-circuiting upstream network.`);
       
       // mocking an OpenAI style response payload format because the cached reponse is only a string
