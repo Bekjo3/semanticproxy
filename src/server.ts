@@ -43,3 +43,12 @@ export async function startServer(server: FastifyInstance): Promise<void> {
     process.exit(1);
   }
 }
+
+
+// const server = initializeServer();
+// async function boot() {
+//   await registerRoutes(server);
+//   await startServer(server);
+// }
+
+// boot();
