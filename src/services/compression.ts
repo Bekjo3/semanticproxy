@@ -51,3 +51,16 @@ export function sliceOldMessages(
     prunedMessages
   };
 }
+
+/*
+ transforms structured message arrays into a single flat text block for summarization.
+*/
+export function formatForSummarization(prunedMessages: IChatCompletionMessage[]): string {
+    return prunedMessages
+      .map((msg) => {
+        // capitalize the role (like, USER, ASSISTANT) to create clear boundaries
+        const roleHeader = `[${msg.role.toUpperCase()}]`;
+        return `${roleHeader}:\n${msg.content}`;
+      })
+      .join('\n\n---\n\n');
+  }
