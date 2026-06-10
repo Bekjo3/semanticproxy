@@ -1,6 +1,15 @@
 import { config } from '../config';
 import { IChatCompletionResponse } from '../types/openai';
 
+const COMPRESSOR_SYSTEM_PROMPT = `You are an expert technical archivist. Your directive is to compress developer conversation logs into a highly dense, factual, and itemized structural digest.
+
+CRITICAL RULES:
+1. Preserve all specific technical constraints, architectural decisions, and facts.
+2. Retain critical code snippets, file paths, and exact variable names if they represent core logic.
+3. Completely eliminate conversational filler, greetings, pleasantries, and redundant explanations.
+4. Format the output as a concise, structured bulleted list.
+5. Do NOT invent, infer, or assume details. If it is not explicitly stated in the log, exclude it completely.`;
+
 /*
   targets gpt-4o-mini for fast, cheap, high-density summarization.
  */
@@ -18,7 +27,7 @@ export async function summarizeConversation(textBlock: string): Promise<string> 
       messages: [
         {
           role: 'system',
-          content: 'You are a highly efficient text summarizer.'  // need to get a good prompt
+          content: COMPRESSOR_SYSTEM_PROMPT
         },
         {
           role: 'user',
