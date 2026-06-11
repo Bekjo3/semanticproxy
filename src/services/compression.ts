@@ -6,11 +6,6 @@ import { generateTextEmbedding } from './embeddings';
 import { upsertVector } from './vectorDb';
 import { IVectorRecord } from '../types/vector';
 
-export interface ICompressionResult {
-    activeMessages: IChatCompletionMessage[];
-    prunedMessages: IChatCompletionMessage[];
-    summaryText: string | null;
-}
 
 export function shouldCompress(totalTokens: number): boolean {
   return totalTokens > config.tokenWatermarkMax;
@@ -100,25 +95,21 @@ export async function executeCompressionPipeline(
     messages: IChatCompletionMessage[],
     payloadTotalTokens: number,
     chatId: string
-  ): Promise<ICompressionResult> {
+  ): Promise<IChatCompletionMessage[]> {
     
-    // slice the array into keep vs. discard (Stage 66)
-    const { activeMessages, prunedMessages } = sliceOldMessages(messages, payloadTotalTokens);
-  
-    // exit early if there was nothing to prune (e.g., a massive single message)
-    if (prunedMessages.length === 0) {
-      return {
-        activeMessages,
-        prunedMessages,
-        summaryText: null
-      };
-    }
-  
-    // format the discarded messages into a flat string
-    const textBlock = formatForSummarization(prunedMessages);
-  
-    // send the flat string to gpt-4o-mini for compression
-    const summaryText = await summarizeConversation(textBlock);
+  // slice the array into keep vs. discard (Stage 66)
+  const { activeMessages, prunedMessages } = sliceOldMessages(messages, payloadTotalTokens);
+
+  // exit early if there was nothing to prune (e.g., a massive single message)
+  if (prunedMessages.length === 0) {
+    return activeMessages;
+  }
+
+  // format the discarded messages into a flat string
+  const textBlock = formatForSummarization(prunedMessages);
+
+  // send the flat string to gpt-4o-mini for compression
+  const summaryText = await summarizeConversation(textBlock);
 
   // archive logs to Vector DB
   try {
@@ -146,11 +137,8 @@ export async function executeCompressionPipeline(
     console.error('[Compression] Vector DB archiving failed:', error);
   }
   
-    // we return all three pieces because we need the prunedMessages for vector storage
-    // and the summaryText to inject back into the active payload
-    return {
-      activeMessages,
-      prunedMessages,
-      summaryText
-    };
-  }
+  const finalPayload = rebuildContext(activeMessages, summaryText);
+  console.log(`[Compression] Final payload size: ${finalPayload.length} messages`); 
+  
+  return finalPayload;
+}

@@ -5,6 +5,7 @@ import { config } from '../config';
 import { tokenTrackerPreHandler } from '../middleware/tokenTracker';
 import { semanticCacheMiddleware } from '../middleware/semanticCache';
 import { processPostResponseCache } from '../middleware/postResponse';
+import { contextCompressorMiddleware } from '../middleware/compressor';
 
 /*
  JSON Schema validator for incoming chat completion requests.
@@ -72,7 +73,7 @@ export async function registerChatRoute(server: FastifyInstance): Promise<void> 
       schema: {
         body: chatCompletionSchema,
       },
-      preHandler: [tokenTrackerPreHandler, semanticCacheMiddleware], // also runs on every single request
+      preHandler: [tokenTrackerPreHandler, semanticCacheMiddleware, contextCompressorMiddleware], // also runs on every single request
     },
     // this func runs everytime a user makes a request.
     async (request: FastifyRequest<{ Body: IChatCompletionRequest }>, reply: FastifyReply) => {
