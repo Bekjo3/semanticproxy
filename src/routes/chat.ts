@@ -12,7 +12,7 @@ import { contextCompressorMiddleware } from '../middleware/compressor';
  */
 const chatCompletionSchema = {
   type: 'object',
-  required: ['messages', 'model'],
+  required: ['messages', 'model', 'chat_id'],
   properties: {
     messages: {
       type: 'array',

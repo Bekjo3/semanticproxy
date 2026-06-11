@@ -19,7 +19,7 @@ export async function contextCompressorMiddleware(
   );
 
   if (shouldCompress(payloadTotalTokens)) {
-    const chatId = body.chat_id || 'anonymous';
+    const chatId = body.chat_id!;
     console.log(`[Compressor] Payload hit ${payloadTotalTokens} tokens. Compressing chat: ${chatId}...`);
 
     try {

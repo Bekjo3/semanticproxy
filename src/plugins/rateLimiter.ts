@@ -13,8 +13,8 @@ export const rateLimiterPlugin = fp(async (server: FastifyInstance) => {
  
     keyGenerator: (request: FastifyRequest) => {
       const ip = request.ip;
-      const body = request.body as IRateLimitRequest | undefined;
-      const chatId = body?.chat_id || 'anonymous'; 
+      const body = request.body as IRateLimitRequest;
+      const chatId = body.chat_id!;
       
       // combines IP and chat_id so users can't bypass by rotating IPs on the same chat, 
       // and multiple users on the same IP don't block each other.

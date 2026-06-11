@@ -16,35 +16,48 @@ CRITICAL RULES:
 export async function summarizeConversation(textBlock: string): Promise<string> {
   const targetUrl = 'https://api.openai.com/v1/chat/completions';
 
-  const response = await fetch(targetUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.openaiApiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: COMPRESSOR_SYSTEM_PROMPT
-        },
-        {
-          role: 'user',
-          content: `Please summarize the following conversation history:\n\n${textBlock}`
-        }
-      ],
-      // keeping variance low so the output is strictly factual
-      temperature: 0.3, 
-    }),
-  });
+  // 15 sec
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(targetUrl, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.openaiApiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: COMPRESSOR_SYSTEM_PROMPT
+          },
+          {
+            role: 'user',
+            content: `Please summarize the following conversation history:\n\n${textBlock}`
+          }
+        ],
+        // keeping variance low so the output is strictly factual
+        temperature: 0.3, 
+      }),
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Summarizer API failed with status ${response.status}: ${errorText}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Summarizer API failed with status ${response.status}: ${errorText}`);
+    }
+
+    const data = (await response.json()) as IChatCompletionResponse;
+    
+    return data.choices[0].message.content;
+  } catch (error: any) {
+      if (error.name === 'AbortError') {
+        throw new Error('Summarizer API timed out after 15 seconds.');
+      }
+      throw error;
+  } finally {
+    clearTimeout(timeoutId); // Prevent memory leaks
   }
-
-  const data = (await response.json()) as IChatCompletionResponse;
-  
-  return data.choices[0].message.content;
 }
