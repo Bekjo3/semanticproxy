@@ -2,6 +2,9 @@ import { IChatCompletionMessage } from '../types/openai';
 import { countMessageTokens } from './tokenizer';
 import { config } from '../config';
 import { summarizeConversation } from './summarizer';
+import { generateTextEmbedding } from './embeddings';
+import { upsertVector } from './vectorDb';
+import { IVectorRecord } from '../types/vector';
 
 export interface ICompressionResult {
     activeMessages: IChatCompletionMessage[];
@@ -72,12 +75,31 @@ export function formatForSummarization(prunedMessages: IChatCompletionMessage[])
       .join('\n\n---\n\n');
   }
 
+export function rebuildContext(
+  activeMessages: IChatCompletionMessage[],
+  summaryText: string
+): IChatCompletionMessage[] {
+  const summaryMessage: IChatCompletionMessage = {
+    role: 'system',
+    content: `[SYSTEM MEMORY ARCHIVE - PAST CONTEXT]:\n${summaryText}`
+  };
+
+  if (activeMessages.length > 0 && activeMessages[0].role === 'system') {
+    activeMessages.splice(1, 0, summaryMessage);
+  } else {
+    activeMessages.unshift(summaryMessage);
+  }
+
+  return activeMessages;
+}
+
 /*
   executes the full sequence of slicing, formatting, and summarizing.
 */
 export async function executeCompressionPipeline(
     messages: IChatCompletionMessage[],
-    payloadTotalTokens: number
+    payloadTotalTokens: number,
+    chatId: string
   ): Promise<ICompressionResult> {
     
     // slice the array into keep vs. discard (Stage 66)
@@ -97,6 +119,32 @@ export async function executeCompressionPipeline(
   
     // send the flat string to gpt-4o-mini for compression
     const summaryText = await summarizeConversation(textBlock);
+
+  // archive logs to Vector DB
+  try {
+    const embeddingVector = await generateTextEmbedding(textBlock);
+  
+    const vectorRecord: IVectorRecord = {
+      id: `prune_${Date.now()}`,
+      values: embeddingVector, 
+      metadata: {
+        chat_id: chatId,
+        user_prompt: '[SYSTEM_CONTEXT_ARCHIVE]',
+        response: textBlock,
+        timestamp: Date.now(),
+        type: 'archived_context'
+      }
+    };
+
+    await upsertVector({
+      namespace: chatId,
+      records: [vectorRecord]
+    });
+
+    console.log(`[Compression] Successfully archived context to Pinecone namespace: ${chatId}`);
+  } catch (error) {
+    console.error('[Compression] Vector DB archiving failed:', error);
+  }
   
     // we return all three pieces because we need the prunedMessages for vector storage
     // and the summaryText to inject back into the active payload
