@@ -13,10 +13,9 @@ export async function contextCompressorMiddleware(
     return;
   }
 
-  const payloadTotalTokens = body.messages.reduce(
-    (total, msg) => total + countMessageTokens(msg), 
-    0
-  );
+  const payloadTotalTokens = typeof request.payloadTokenCount === 'number'
+    ? request.payloadTokenCount
+    : body.messages.reduce((total, msg) => total + countMessageTokens(msg), 0);
 
   if (shouldCompress(payloadTotalTokens)) {
     const chatId = body.chat_id!;
