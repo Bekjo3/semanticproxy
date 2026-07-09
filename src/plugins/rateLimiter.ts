@@ -18,6 +18,19 @@ export const rateLimiterPlugin = fp(async (server: FastifyInstance) => {
       
       const body = request.body as IRateLimitRequest | undefined;
       const chatId = typeof body?.chat_id === 'string' && body.chat_id.length > 0 ? body.chat_id : null;
+
+      /**
+       * TODO: Refactor client-controlled identifier bucketing.
+        
+        SECURITY NOTE: Relying on a client-supplied 'chat_id' combined with 'ip' for 
+        rate-limiting could potentially lead to a client bypassing quotas 
+        by rotating or generating pseudo-random chat IDs on successive requests.
+       
+       * SOLUTION(TO BE DONE LATER): 
+         Shift from IP + Client-Data mapping to cryptographic authentication. 
+         Under prod volumes, issue cryptographically signed JWTs or opaque API keys 
+         to authorized clients.
+       */
       return chatId ? `${ip}-${chatId}` : ip;
     },
 

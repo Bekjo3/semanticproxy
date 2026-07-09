@@ -9,7 +9,11 @@ import { rateLimiterPlugin } from './plugins/rateLimiter';
 export function initializeServer(): FastifyInstance {
   const server: FastifyInstance = Fastify({
     logger: false, //TODO: will add structured logging later
-    trustProxy: true
+    /**
+     * SECURITY FIX: prevent external IP spoofing by shifting from blind trust (true)
+     * to an explicit whitelist of upstream reverse proxies/local gateways.
+     */
+    trustProxy: ['127.0.0.1', '10.0.0.5']
   });
 
   return server;
