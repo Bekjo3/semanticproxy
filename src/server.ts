@@ -44,7 +44,7 @@ export async function startServer(server: FastifyInstance): Promise<void> {
     } else {
       console.error('Fatal server startup error:', err);
     }
-    process.exit(1);
+    throw err;
   }
 }
 
