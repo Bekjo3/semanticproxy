@@ -26,8 +26,12 @@ export function sliceOldMessages(
   const activeMessages: IChatCompletionMessage[] = [];
   const prunedMessages: IChatCompletionMessage[] = [];
 
-  const maxRetainedTokens = payloadTotalTokens - config.targetPruneTokens;
-  let activeTokens = 0;
+  const maxRetainedTokens = Math.max(0, payloadTotalTokens - config.targetPruneTokens);
+  const rootSystemTokens = (messages.length > 0 && messages[0].role === 'system') 
+    ? countMessageTokens(messages[0]) 
+    : 0;
+
+  let activeTokens = rootSystemTokens;
 
   // backwards because it must prioritize keeping the absolute newest conversational context perfectly intact.
   for (let i = messages.length - 1; i >= 0; i--) {
