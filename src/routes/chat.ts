@@ -5,13 +5,14 @@ import { config } from '../config';
 import { tokenTrackerPreHandler } from '../middleware/tokenTracker';
 import { semanticCacheMiddleware } from '../middleware/semanticCache';
 import { processPostResponseCache } from '../middleware/postResponse';
+import { contextCompressorMiddleware } from '../middleware/compressor';
 
 /*
  JSON Schema validator for incoming chat completion requests.
  */
 const chatCompletionSchema = {
   type: 'object',
-  required: ['messages', 'model'],
+  required: ['messages', 'model', 'chat_id'],
   properties: {
     messages: {
       type: 'array',
@@ -59,6 +60,7 @@ const chatCompletionSchema = {
     },
     chat_id: {
       type: 'string',
+      minLength: 1,
     },
   },
 };
@@ -72,7 +74,7 @@ export async function registerChatRoute(server: FastifyInstance): Promise<void> 
       schema: {
         body: chatCompletionSchema,
       },
-      preHandler: [tokenTrackerPreHandler, semanticCacheMiddleware], // also runs on every single request
+      preHandler: [tokenTrackerPreHandler, semanticCacheMiddleware, contextCompressorMiddleware], // also runs on every single request
     },
     // this func runs everytime a user makes a request.
     async (request: FastifyRequest<{ Body: IChatCompletionRequest }>, reply: FastifyReply) => {
@@ -89,7 +91,7 @@ export async function registerChatRoute(server: FastifyInstance): Promise<void> 
         // extract data for the background worker
         const messages = request.body.messages;
         const lastUserPrompt = messages?.[messages.length - 1]?.content;
-        const chatId = request.body.chat_id || 'global_default';
+        const chatId = request.body.chat_id as string;
 
         await reply.send(response);
 
