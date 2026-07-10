@@ -41,7 +41,9 @@ async function fireRateLimitTest() {
         console.log(`[Request ${res.index}] 200 OK`);
       } else if (res.status === 429) {
         blockedCount++;
-        console.log(`[Request ${res.index}] 429 BLOCKED: ${res.data.message}`);
+        
+        const msg = res.data?.message ?? String(res.data);
+        console.log(`[Request ${res.index}] 429 BLOCKED: ${msg}`);
       } else {
         console.log(`[Request ${res.index}] Unexpected Status: ${res.status}`);
       }
