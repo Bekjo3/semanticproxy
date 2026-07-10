@@ -51,7 +51,13 @@ export async function summarizeConversation(textBlock: string): Promise<string> 
 
     const data = (await response.json()) as IChatCompletionResponse;
     
-    return data.choices[0].message.content;
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      throw new Error('Summarizer API returned an empty choices array or missing content.');
+    }
+
+    return content;
   } catch (error: any) {
       if (error.name === 'AbortError') {
         throw new Error('Summarizer API timed out after 15 seconds.');
