@@ -60,6 +60,7 @@ const chatCompletionSchema = {
     },
     chat_id: {
       type: 'string',
+      minLength: 1,
     },
   },
 };
@@ -90,7 +91,7 @@ export async function registerChatRoute(server: FastifyInstance): Promise<void> 
         // extract data for the background worker
         const messages = request.body.messages;
         const lastUserPrompt = messages?.[messages.length - 1]?.content;
-        const chatId = request.body.chat_id || 'global_default';
+        const chatId = request.body.chat_id as string;
 
         await reply.send(response);
 

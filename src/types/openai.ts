@@ -16,7 +16,7 @@ export interface IChatCompletionRequest {
   top_p?: number;  // 0.1: only the top 10% most likely tokens are considered, and 1.0: all tokens are considered.
   frequency_penalty?: number; // discourage/encourage model based of frequency of tokens in the text so far.
   presence_penalty?: number;
-  chat_id?: string;
+  chat_id: string;
 }
 
 /**
