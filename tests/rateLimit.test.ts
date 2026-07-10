@@ -16,7 +16,16 @@ async function fireRateLimitTest() {
         }),
       }).then(async (response) => {
         const status = response.status;
-        const data = await response.json();
+        const raw = await response.text();
+
+        let data: any;
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          // if it's not JSON (like an HTML error page), just save the raw text
+          data = raw;
+        }
+
         return { index, status, data };
       });
     });
