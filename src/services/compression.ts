@@ -120,7 +120,7 @@ export async function executeCompressionPipeline(
     const embeddingVector = await generateTextEmbedding(textBlock);
   
     const vectorRecord: IVectorRecord = {
-      id: `prune_${Date.now()}`,
+      id: `prune_${chatId}_${Date.now()}`,
       values: embeddingVector, 
       metadata: {
         chat_id: chatId,
