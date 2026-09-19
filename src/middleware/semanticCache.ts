@@ -1,92 +1,74 @@
-import { config } from '../config';
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { SIMILARITY_THRESHOLD } from '../config';
 import { generateTextEmbedding } from '../services/embeddings';
-import { IChatCompletionMessage, IChatCompletionRequest } from '../types/openai';
-import { isWithinTemporalOverrideWindow, recordTurnTimestamp } from '../services/sessionStore';
 import { queryNearest } from '../services/vectorDb';
+import { IChatCompletionMessage, IChatCompletionRequest } from '../types/openai';
+import { IQueryResult } from '../types/vector';
 
-//extract the latest user question from the chat history array.
-function extractLatestUserMessage(messages: IChatCompletionMessage[] | undefined): string | null {
+// last array slot is usually the active user turn in chat completions.
+function extractLatestUserMessage(
+  messages: IChatCompletionMessage[] | undefined
+): IChatCompletionMessage | null {
   if (!messages || messages.length === 0) {
     return null;
   }
 
   const lastMessage = messages[messages.length - 1];
-
-  // verify it's actually a user prompt
-  if (lastMessage && lastMessage.role === 'user') {
-    return lastMessage.content;
+  if (lastMessage?.role === 'user') {
+    return lastMessage;
   }
 
   return null;
 }
 
-// core semantic sache middleware interceptor
+// header wins so clients can keep an OpenAI-shaped body while still scoping cache by session.
+function extractChatId(request: FastifyRequest, body: IChatCompletionRequest): string {
+  const headerValue = request.headers['x-chat-id'];
+  if (typeof headerValue === 'string' && headerValue.trim().length > 0) {
+    return headerValue.trim();
+  }
+
+  if (body.chat_id.trim().length > 0) {
+    return body.chat_id.trim();
+  }
+
+  return 'global_default';
+}
+
+// pre-handler hook — embed prompt and ANN lookup.
 export async function semanticCacheMiddleware(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
+  void reply;
+
   try {
     const body = request.body as IChatCompletionRequest;
+    const chatId = extractChatId(request, body);
 
-    // provide a strict fallback string if the client omits the chat_id
-    const chatId = body.chat_id || 'global_default';
-    
-    const userPrompt = extractLatestUserMessage(body.messages);
-    if (!userPrompt) {
-      return; // no user message to cache match against, pass through to route handler
+    const latestUserMessage = extractLatestUserMessage(body.messages);
+    if (!latestUserMessage) {
+      return;
     }
 
-    const embeddedQuery = await generateTextEmbedding(userPrompt);
+    const queryVector = await generateTextEmbedding(latestUserMessage.content);
 
-    const matchResult = await queryNearest({
-      vector: embeddedQuery,
-      namespace: chatId
+    const nearestMatch: IQueryResult | null = await queryNearest({
+      vector: queryVector,
+      namespace: chatId,
     });
 
-    const isHighConfidence = matchResult && matchResult.score >= config.similarityThreshold;
+    request.semanticCacheMatch = nearestMatch;
+    request.semanticCacheThreshold = SIMILARITY_THRESHOLD;
 
-    // Evaluate the cache hit (similarityThreshold is 0.95 by default w/c means the questions must be semantically almost identical to trigger a cache hit.)
-    if (isHighConfidence) { 
-      const isStalled = isWithinTemporalOverrideWindow(chatId, matchResult.record.id);
-
-      if (isStalled) {
-         console.log(`[CACHE OVERRIDE] Match found, but user is looping. Forcing fresh OpenAI call.`);
-         return; // pass through to route handler
-      }
-        
-      console.log(`[CACHE HIT] Score: ${matchResult.score}. Short-circuiting upstream network.`);
-      
-      // mocking an OpenAI style response payload format because the cached reponse is only a string
-      const mockOpenAiResponse = {
-        id: `chatcmpl-cached-${matchResult.record.id}`,
-        object: 'chat.completion',
-        created: Math.floor(Date.now() / 1000), // ms to sec
-        model: 'gpt-4o-mini',
-        choices: [
-          {
-            index: 0,
-            message: {
-              role: 'assistant',
-              content: matchResult.record.metadata.response
-            },
-            finish_reason: 'stop'
-          }
-        ],
-        usage: {
-          prompt_tokens: 0, // 0 tokens used because we bypassed OpenAI completely
-          completion_tokens: 0,
-          total_tokens: 0
-        }
-      };
-
-      recordTurnTimestamp(chatId, matchResult.record.id);
-      return reply.status(200).send(mockOpenAiResponse); // prevents the request form being sent to chect completion endpoint
+    if (nearestMatch) {
+      console.log(
+        `[semantic-cache] chat=${chatId} score=${nearestMatch.score.toFixed(4)} threshold=${SIMILARITY_THRESHOLD}`
+      );
+    } else {
+      console.log(`[semantic-cache] chat=${chatId} no vector match in index`);
     }
-
-    console.log(`[CACHE MISS] Best match score was ${matchResult?.score ?? 0}. Forwarding to OpenAI.`);
-    
   } catch (error) {
-    console.error('Cache middleware error (Failing Open):', error);
+    console.error('[semantic-cache] lookup failed (fail-open to upstream):', error);
   }
 }

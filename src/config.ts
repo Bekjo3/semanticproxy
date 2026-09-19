@@ -2,9 +2,8 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-/**
-not done yet. Will update this later.
- */
+export const SIMILARITY_THRESHOLD = 0.95;
+
 interface IConfig {
   openaiApiKey: string;
   port: number;
@@ -29,7 +28,7 @@ function loadConfig(): IConfig {
     : 3000;
   const similarityThreshold = process.env.SIMILARITY_THRESHOLD
     ? parseFloat(process.env.SIMILARITY_THRESHOLD)
-    : 0.95;
+    : SIMILARITY_THRESHOLD;
 
   if (!openaiApiKey) {
     throw new Error('OPENAI_API_KEY is not set in environment variables');

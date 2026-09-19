@@ -7,6 +7,7 @@
     "start": "tsx src/index.ts",
     "test:proxy": "tsx tests/test-proxy.ts",
     "test:tokenizer": "tsx tests/tokenizer.test.ts",
+    "test:vector": "tsx tests/vector.test.ts",
     "test": "npm run test:tokenizer"
   },
   "repository": {
